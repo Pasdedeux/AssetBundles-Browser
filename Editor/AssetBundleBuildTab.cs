@@ -288,7 +288,7 @@ namespace AssetBundleBrowser
 
             // build.
             EditorGUILayout.Space();
-            if (GUILayout.Button("Build") )
+            if ( GUILayout.Button( "Build" ) )
             {
                 EditorApplication.delayCall += ExecuteBuild;
             }
@@ -375,6 +375,8 @@ namespace AssetBundleBrowser
         }
 
 
+        #region AB包生成
+
         #region ABEditor
         public class ABVersion
         {
@@ -403,7 +405,7 @@ namespace AssetBundleBrowser
         /// <summary>
         /// 生成csv文件
         /// </summary>
-        static IEnumerator IEStartSendCSV( string outpuut )
+        public static IEnumerator IEStartSendCSV( string outpuut )
         {
             _IsABVersionCSV = false;
             string csvPath = outpuut + "/ABVersion.csv";
@@ -464,12 +466,20 @@ namespace AssetBundleBrowser
                 abVersionsList.Add( item.Value );
             }
             ResponseExportCSV( abVersionsList, csvPath );
-            AssetDatabase.Refresh();
+
+#if UNITY_EDITOR
+            UnityEditor.AssetDatabase.Refresh();
+#endif
         }
 
 
 
-        private static void ResponseExportCSV( List<ABVersion> abVersions, string fileName )
+        /// <summary>
+        /// 将ssv写入到指定目录
+        /// </summary>
+        /// <param name="abVersions"></param>
+        /// <param name="fileName"></param>
+        public static void ResponseExportCSV( List<ABVersion> abVersions, string fileName )
         {
             if ( fileName.Length > 0 )
             {
@@ -490,14 +500,22 @@ namespace AssetBundleBrowser
 
         private static void CreateCSV( Dictionary<string, ABVersion> abVersionsDic )
         {
-            string[] files = Directory.GetFiles( _abResPath );
-            foreach ( string file in files )
+            //先获取指定路径下的所有Asset，包括子文件夹下的资源
+            DirectoryInfo dir = new DirectoryInfo( _abResPath );
+            FileInfo[] files = dir.GetFiles(); 
+
+            foreach ( var file in files )
             {
-                string suffix = file.Substring( file.Length - 4 );
+                string suffix = file.FullName.Substring( file.FullName.Length - 4 );
                 if ( suffix != "meta" )
                 {
-                    string md5 = GetMD5HashFromFile( file );
-                    string abName = file.Substring( _abResPath.Length + 1 );
+                    //对AB包添加后缀
+                    string fileNames = file.FullName;
+                    string md5 = GetMD5HashFromFile( fileNames );
+                    string newName = fileNames.Contains( "." ) ? fileNames : fileNames + ".ab";
+                    string abName = newName.Substring( _abResPath.Length + 1 );
+
+                    File.Move( fileNames, newName );
                     ABVersion ab = new ABVersion
                     {
                         AbName = abName,
@@ -544,7 +562,7 @@ namespace AssetBundleBrowser
         {
             try
             {
-                return Crypto.md5.GetFileHash( fileName );
+                return LitFramework.Crypto.Crypto.md5.GetFileHash( fileName );
             }
             catch ( Exception ex )
             {
@@ -554,6 +572,10 @@ namespace AssetBundleBrowser
 
 
         #endregion
+
+        #endregion
+
+
 
         private static void DirectoryCopy(string sourceDirName, string destDirName)
         {
